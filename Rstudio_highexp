@@ -178,3 +178,299 @@ Copci_deseq <- function(Copci_countdata_May, condition) {
 CC_Myc_Hyp_VeryHigh <- Copci_deseq(Copci_countdata_May, "Hyp") ###691
 CC_Myc_P1_VeryHigh <-  Copci_deseq(Copci_countdata_May, "P1") #857
 CC_Myc_P2_VeryHigh <-  Copci_deseq(Copci_countdata_May, "P2") #
+
+#########DotPlots and Barplots ####################################
+
+data_long_CC_LER_P2 <- CC_Myc_P2_VeryHigh_Ler_filt %>%
+  pivot_longer(cols = Myc1:Tissue4, names_to = "Measurement", values_to = "Value") %>%
+  filter(!is.na(Value))  # Remove NA values
+
+data_long_CC_LER_P2_colour <- data_long_CC_LER_P2 %>%
+  mutate(Color_Group = case_when(
+    grepl("Lerce_", ID) ~ "Lerce",
+    grepl("LerER_", ID) ~ "LerER",
+    grepl("CC_", ID) ~ "CC",
+    TRUE ~ "Other"
+  ))
+
+
+data_long_CC_LER_P2_colour <- data_long_CC_LER_P2_colour %>%
+  mutate(Measurement_Group = ifelse(grepl("^Myc", Measurement), "Myc", "Tissue"))
+
+
+
+
+
+data_long_CC_LER_P2_colour__Filtered_tobe_more_compatible <- data_long_CC_LER_P2_colour[, c(1, 3, 5:7)] %>% mutate(ID_Myc_T =  paste(ID, Measurement_Group, sep = "_")) #%>%
+  #select(2:4, 6)
+
+
+# Define the color mapping based on specific conditions
+get_color <- function(id) {
+  if (grepl("CC", id)) {
+    return("green")
+  } else if (grepl("Lerce", id)) {
+    return("orange")
+  } else if (grepl("LerER", id)) {
+    return("darkblue")
+  } else {
+    return("gray") # Default color for unspecified categories
+  }
+}
+
+# Create the color mapping dictionary
+color_mapping <- setNames(
+  sapply(data_long_CC_LER_P2_colour__Filtered_tobe_more_compatible$ID_Myc_T, get_color),
+  data_long_CC_LER_P2_colour__Filtered_tobe_more_compatible$ID_Myc_T
+)
+
+
+# Create the plot
+ggplot(data_long_CC_LER_P2_colour__Filtered_tobe_more_compatible, aes(x = Group, y = Value, fill = Color_Group, group = Measurement_Group)) +
+  geom_boxplot(position = position_dodge(width = 0.75)) +
+  facet_wrap(~ Measurement_Group, scales = "free_x", ncol = 2) +
+  scale_fill_manual(values = color_mapping) +
+  labs(title = "Boxplot by GP and Measurement Type",
+       x = "GP and Measurement Type",
+       y = "Value",
+       fill = "ID Group") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+
+
+
+
+
+
+
+###############Histograph 
+
+
+
+
+
+
+
+
+
+library(dplyr)
+library(ggplot2)
+
+# Sample data
+data <- data.frame(
+  ID = c("Cat", "Cat", "Cat", "Cat", "Dog", "Dog", "Dog"),
+  Value = c(100, 200, 10000, 10000, 50, 40, 5000),
+  Category = c("M", "M", "T", "T", "M", "M", "T"),
+  GP = c("GP1", "GP1", "GP1", "GP1", "GP1", "GP1", "GP1"),
+  Status = c("Out", "Out", "Out", "Out", "In", "In", "In")
+)
+
+# Group by GP and calculate mean and standard deviation
+summary_data <- data %>%
+  group_by(GP, ID, Category, Status) %>%
+  summarize(
+    Mean = mean(Value),
+    SD = sd(Value)
+  )
+
+# Plot bar graph
+ggplot(summary_data, aes(x = GP, y = Mean, fill = ID)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), 
+                position = position_dodge(width = 0.9), width = 0.2) +
+  facet_wrap(~ Status, scales = "free") +
+  labs(title = "Average Value by GP and ID", x = "GP", y = "Mean Value", fill = "ID") +
+  theme_minimal()
+
+
+
+
+
+
+
+
+###########
+
+
+
+
+####Get STD and AVg for the Myc and Tissue sets
+####Plot them via group
+####THen plot via a dot plot, like what was done before, making sure to give 
+####Ler CC their own colour
+
+###
+
+CC_Myc_Hyp_VeryHigh <- Copci_deseq(Copci_countdata_May, "Hyp") ###691
+CC_Myc_P1_VeryHigh <-  Copci_deseq(Copci_countdata_May, "P1") #857
+CC_Myc_P2_VeryHigh <-  Copci_deseq(Copci_countdata_May, "P2") #710
+
+
+CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std <- CC_Myc_Hyp_VeryHigh_Ler_filt %>% 
+  mutate(
+    Avg_Myc = rowMeans(select(., 2:4)),
+    Myc_SD = apply(select(., 2:4), 1, sd),
+    Avg_tissue = rowMeans(select(., 5:7)),
+    tissue_SD= apply(select(., 5:7), 1, sd)
+  ) %>% select(., 1, 10:14) %>% mutate(Color_Group = case_when(
+    grepl("Lerce_", ID) ~ "Lerce",
+    grepl("LerER_", ID) ~ "LerER",
+    grepl("CC_", ID) ~ "CC",
+    TRUE ~ "Other"
+  ))
+
+
+Colnames_redone = c("ID", "Group", "Avg", "SD", "Type")
+
+CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Myc <- CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std[, c(1:4, 7)] %>% mutate(Type = paste(Color_Group, "Myc", sep="_")) %>% select(., -5)
+colnames(CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Myc) <- Colnames_redone
+CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Tiss <- CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std[, c(1,2,5:7)] %>% mutate(Type = paste(Color_Group, "Tiss", sep="_")) %>% select(., -5)
+colnames(CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Tiss) <-  Colnames_redone
+
+CC_LER_Myc_Hyp_Avg_Std_MycTiss <- bind_rows(CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Myc, CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Tiss)
+
+
+
+# Create the bar plot
+ggplot(CC_LER_Myc_Hyp_Avg_Std_MycTiss, aes(x = ID, y = Avg, fill = Type)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_errorbar(aes(ymin = Avg - SD, ymax = Avg + SD), 
+                width = 0.2, position = position_dodge(width = 0.9)) +
+  facet_wrap(~ Group, scales = "free_y") +
+  labs(title = "Bar Plot of Averages with SD Error Bars", 
+       x = "ID", 
+       y = "Average") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+####OK THIS WORKS, and does exactly what I wan
+
+####There are some extreme SD values here, so might be better to plot these 
+
+###Dotplot setup
+
+
+
+df <- data.frame(
+  ID = c('A', 'A', 'A', 'B_1', 'B_1', 'B', 'C', 'C', 'C'),
+  Group = c('G1', 'G1', 'G1', 'G1', 'G1', 'G2', 'G3', 'G3', 'G3'),
+  Value = c(5, 6, 7, 8, 9, 10, 2, 3, 4)
+)
+
+ggplot(df, aes(x = ID, y = Value)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', dotsize = 1) +
+  facet_wrap(~ Group, scales = 'free_x') +
+  labs(title = "Dot Plot Grouped by ID within Groups",
+       x = "ID",
+       y = "Value") +
+  theme_minimal()
+
+
+
+# Create the plot
+stripchart(Value ~ Group + ID, data = df, method = "stack", vertical = TRUE,
+           col = c("blue", "red", "green"), pch = 16,
+           main = "Dot Plot Grouped by ID",
+           xlab = "Group", ylab = "Value")
+
+# Add legend
+legend("topright", legend = unique(df$ID), fill = c("blue", "red", "green"))
+
+
+
+
+########Dotplots
+###
+Colnames_redone = c("ID", "Group", "Avg", "SD", "Type")
+
+
+
+library(dplyr)
+
+CC_Myc_Hyp_VeryHigh_Ler_filt_Dotplot <- CC_Myc_Hyp_VeryHigh_Ler_filt[, c(1:4, 10)] %>% 
+  mutate(Color_Group = case_when(
+    grepl("Lerce_", ID) ~ "Lerce",
+    grepl("LerER_", ID) ~ "LerER",
+    grepl("CC_", ID) ~ "CC",
+    TRUE ~ "Other"
+  )) %>% mutate(Type = paste(Color_Group, "Myc", sep="_")) %>% select(., -6)
+
+Data_long_Dotplot_prep_Myc <- CC_Myc_Hyp_VeryHigh_Ler_filt_Dotplot %>%
+  pivot_longer(cols = starts_with("Myc"), names_to = "Measurement", values_to = "Value")# %>%
+
+CC_Myc_Hyp_VeryHigh_Ler_filt_Dotplot_Tissue <- CC_Myc_Hyp_VeryHigh_Ler_filt[, c(1, 5:7, 10)] %>% 
+  mutate(Color_Group = case_when(
+    grepl("Lerce_", ID) ~ "Lerce",
+    grepl("LerER_", ID) ~ "LerER",
+    grepl("CC_", ID) ~ "CC",
+    TRUE ~ "Other"
+  )) %>% mutate(Type = paste(Color_Group, "Tiss", sep="_")) %>% select(., -6)
+
+Data_long_Dotplot_prep_Tiss <- CC_Myc_Hyp_VeryHigh_Ler_filt_Dotplot_Tissue %>%
+  pivot_longer(cols = starts_with("Tiss"), names_to = "Measurement", values_to = "Value")# %>%
+
+
+Data_long_dotplot_prep_Myc_tis <- bind_rows(Data_long_Dotplot_prep_Myc, Data_long_Dotplot_prep_Tiss)
+
+# Define the colors for each type
+color_map <- c("CC_Myc" = "blue", "CC_Tiss" = "yellow", "Lerce_Myc" = "brown", "Lerce_Tiss" = "black", "L")
+
+# Create the dot plot with custom colors
+ggplot(Data_long_dotplot_prep_Myc_tis, aes(x = ID, y = Value, color = Type)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', dotsize = 1) +
+  facet_wrap(~ Group, scales = 'free_x') +
+  scale_color_manual(values = color_map) +
+  labs(title = "Dot Plot Grouped by ID within Groups",
+       x = "ID",
+       y = "Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+
+
+
+
+
+
+#select(ID, Value, Group)
+
+
+
+Data_long_Dotplot_prep <- CC_Myc_Hyp_VeryHigh_Ler_filt %>% select(., -9) %>%
+  pivot_longer(cols = starts_with("Myc"), names_to = "Measurement", values_to = "Value")# %>%
+#select(ID, Value, Group)
+
+
+CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Tiss <- CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std[, c(1,2,5:7)] %>% mutate(Type = paste(Color_Group, "Tiss", sep="_")) %>% select(., -5)
+
+
+colnames(CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Tiss) <-  Colnames_redone
+colnames(CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Myc) <- Colnames_redone
+
+CC_LER_Myc_Hyp_Avg_Std_MycTiss <- bind_rows(CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Myc, CC_Myc_Hyp_VeryHigh_Ler_filt_Avg_std____Tiss)
+
+
+
+
+
+
+
+CC_Myc_Hyp_VeryHigh_Ler_filt_dotplot <- CC_Myc_Hyp_VeryHigh_Ler_filt[, c(1:7, 10)]
+
+Data_long_Dotplot_prep <- CC_Myc_Hyp_VeryHigh_Ler_filt %>% select(., -9) %>%
+  pivot_longer(cols = starts_with("Myc"), names_to = "Measurement", values_to = "Value")# %>%
+  #select(ID, Value, Group)
+
+
+
+
+
+
+
